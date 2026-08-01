@@ -7,7 +7,9 @@ const { colors } = useSectionPalette()
 // Le site est servi sous un sous-chemin : un lien écrit en dur viserait la racine du
 // domaine et donnerait un 404 en production, alors qu'il fonctionnerait en local.
 const { baseURL } = useRuntimeConfig().app
-const cvUrl = `${baseURL}Luc-Fery-cv-public.pdf`
+// La casse doit correspondre exactement au fichier de public/ : Windows l'ignore, le
+// serveur de GitHub Pages non, et le lien répondrait 404 une fois déployé.
+const cvUrl = `${baseURL}Luc-Fery-CV-public.pdf`
 
 const facts = [
   { label: 'Basé à', value: 'Liège' },
