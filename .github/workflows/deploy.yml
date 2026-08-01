@@ -21,8 +21,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Nuxt 4.4 exige ^22.12 || ^24.11 || >=26 : sous Node 20, npm n'émettait que des
+          # avertissements, mais le build s'exécutait sur un moteur non supporté.
+          node-version: 22
           cache: npm
+      # Le lock est produit par npm 11, qui n'inscrit pas les dépendances de pair des
+      # copies imbriquées ; npm 10 les réclame et refuse alors d'installer. Il faut donc la
+      # même majeure que celle qui a généré le fichier.
+      - run: npm install -g npm@11
       - run: npm ci
       - run: npm run lint
       - run: npm run generate
