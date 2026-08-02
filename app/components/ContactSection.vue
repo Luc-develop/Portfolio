@@ -3,6 +3,36 @@ import { siGithub } from 'simple-icons'
 
 const { colors } = useSectionPalette()
 const { form, status, error, isComplete, submit } = useContactForm()
+const { inset: keyboardInset, revealField } = useVirtualKeyboard()
+
+// Le clavier recouvre le bas de la dernière section, qui est aussi le bas du document : sans
+// cette réserve, il n'y a plus rien à faire défiler et le dernier champ ne peut pas remonter
+// au-dessus de lui.
+const contentPadding = computed(() =>
+  keyboardInset.value ? { paddingBottom: `${keyboardInset.value}px` } : undefined,
+)
+
+function fieldFromFocus(): HTMLElement | null {
+  const el = document.activeElement
+  if (!el) return null
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? el as HTMLElement : null
+}
+
+// Deux déclencheurs, pour deux moments distincts : l'ouverture du clavier, qui arrive bien
+// après le focus qui l'a provoquée, et le passage d'un champ à l'autre alors qu'il est déjà
+// ouvert — auquel cas sa hauteur ne change pas et rien ne serait observé.
+// flush post : la réserve de défilement doit exister dans le DOM avant qu'on calcule de
+// combien remonter.
+watch(keyboardInset, (value) => {
+  if (!value) return
+  const field = fieldFromFocus()
+  if (field) revealField(field)
+}, { flush: 'post' })
+
+function onFieldFocus(event: FocusEvent) {
+  if (!keyboardInset.value) return
+  revealField(event.target as HTMLElement)
+}
 
 // Deux tracés figés ici : l'enveloppe n'est pas une marque et n'a jamais eu sa place dans
 // simple-icons, et LinkedIn a été retiré du catalogue. Même format 24×24 plein que GitHub,
@@ -30,7 +60,10 @@ const fieldClass = `w-full rounded-lg bg-slate-100/10 px-4 py-3 text-base text-s
     side="left"
     last
   >
-    <div class="mx-auto flex max-w-5xl flex-col gap-12 px-6 pb-24 pt-16 lg:pt-24 sm:px-10 lg:px-16">
+    <div
+      class="mx-auto flex max-w-5xl flex-col gap-12 px-6 pb-24 pt-16 lg:pt-24 sm:px-10 lg:px-16"
+      :style="contentPadding"
+    >
       <header class="flex flex-col gap-4">
         <p class="max-w-xl text-base leading-relaxed text-slate-100/80 sm:text-lg">
           Une offre, une question sur un projet, ou juste l'envie d'échanger : écris-moi.
@@ -40,7 +73,7 @@ const fieldClass = `w-full rounded-lg bg-slate-100/10 px-4 py-3 text-base text-s
       <!-- Deux colonnes seulement à partir de xl : en dessous, un formulaire et une liste
            côte à côte sont trop serrés. -->
       <div class="grid gap-12 xl:grid-cols-[1fr_auto] xl:gap-16">
-        <form class="flex flex-col gap-5" @submit.prevent="submit">
+        <form class="flex flex-col gap-5" @submit.prevent="submit" @focusin="onFieldFocus">
           <div class="flex flex-col gap-2">
             <label for="contact-name" :class="labelClass">
               Nom

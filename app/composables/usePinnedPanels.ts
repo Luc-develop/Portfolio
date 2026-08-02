@@ -16,6 +16,18 @@ export function usePinnedPanels() {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches
   }
 
+  // Le clavier virtuel réduit la fenêtre exactement comme un changement de gabarit, et le
+  // navigateur fait défiler la page pour dégager le champ qu'on vient de toucher. Reconstruire
+  // ou caler à ce moment-là écraserait ce défilement, et le champ repasserait sous le clavier.
+  // Un champ éditable au focus est le seul signal fiable : iOS ne redimensionne pas la fenêtre
+  // et n'expose donc rien d'autre à observer.
+  function isEditingField(): boolean {
+    const el = document.activeElement
+    if (!el) return false
+    return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'
+      || (el as HTMLElement).isContentEditable
+  }
+
   function init(container: HTMLElement) {
     root = container
     build()
@@ -78,6 +90,10 @@ export function usePinnedPanels() {
   // en permanence : reconstruire à chaque fois hacherait le défilement. Seul un vrai
   // changement de gabarit déclenche la reconstruction.
   function onResize() {
+    // La hauteur de référence n'est pas mise à jour ici : à la fermeture du clavier, la
+    // fenêtre retrouve sa taille d'origine et l'événement suivant ne constate aucun écart.
+    if (isEditingField()) return
+
     const widthChanged = window.innerWidth !== viewportWidth
     const heightChanged = Math.abs(window.innerHeight - viewportHeight) > 120
     if (!widthChanged && !heightChanged) return
@@ -170,7 +186,7 @@ export function usePinnedPanels() {
   // plutôt que par maxScroll : les panneaux épinglés étant retirés du flux, la hauteur du
   // document varie en cours de route et ne peut pas servir de référence stable.
   function snapToPanel(progress: number, self?: ScrollTrigger): number {
-    if (!self) return progress
+    if (!self || isEditingField()) return progress
     const range = self.end - self.start
     if (range <= 0) return progress
 
