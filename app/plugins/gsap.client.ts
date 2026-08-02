@@ -9,9 +9,10 @@ import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
 export default defineNuxtPlugin(() => {
   gsap.registerPlugin(SplitText, MorphSVGPlugin, Flip, ScrollTrigger, ScrollToPlugin)
 
-  // Sur mobile, ScrollTrigger recalcule ses bornes à chaque variation de hauteur de fenêtre :
-  // barre d'URL qui se replie, et surtout clavier virtuel qui s'ouvre. Le recalcul déplace le
-  // défilement sous le doigt en pleine saisie. Cette option lui fait ignorer les
-  // redimensionnements purement verticaux sur appareil tactile.
+  // Sur mobile, ScrollTrigger recalcule ses bornes à chaque variation de hauteur de fenêtre.
+  // La barre d'URL n'est plus en cause depuis normalizeScroll (usePinnedPanels), qui la fige,
+  // mais le clavier virtuel si : la normalisation est justement suspendue pendant la saisie
+  // pour laisser le navigateur dégager le champ, et c'est cette option qui empêche alors le
+  // recalcul de déplacer le défilement sous le doigt.
   ScrollTrigger.config({ ignoreMobileResize: true })
 })

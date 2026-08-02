@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { useHubIntro } from '~/composables/useHubIntro'
 
+// active : transmis à HubRole, dont la boucle de morph doit s'arrêter dès que le hub cède
+// la place à la section suivante.
+withDefaults(defineProps<{ active?: boolean }>(), { active: true })
+
 const emit = defineEmits<{ introEnd: [], chromeReady: [] }>()
 
 const panelRef = ref<HTMLElement | null>(null)
@@ -31,7 +35,7 @@ onMounted(async () => {
       <HubIntro v-if="introPlaying" />
       <div class="relative w-px h-px">
         <HubCore />
-        <HubRole :morph="!introPlaying" />
+        <HubRole :morph="!introPlaying" :active="active" />
       </div>
     </div>
   </section>

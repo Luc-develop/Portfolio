@@ -2,7 +2,6 @@
 import { usePinnedPanels } from '~/composables/usePinnedPanels'
 
 const panelsRef = ref<HTMLElement | null>(null)
-const introPlaying = ref(true)
 // Les éléments de navigation se posent pendant la frappe du rôle, pas à la fin de
 // l'intro : mis en place au même instant, ils surgissaient tous ensemble.
 const chromeReady = ref(false)
@@ -21,7 +20,6 @@ onUnmounted(() => {
 })
 
 async function onIntroEnd() {
-  introPlaying.value = false
   document.body.style.overflow = ''
   // Les panneaux ne sont mesurés qu'une fois le tiroir rendu et l'intro retirée du DOM.
   await nextTick()
@@ -32,7 +30,11 @@ async function onIntroEnd() {
 <template>
   <div :style="accentVars">
     <div ref="panelsRef">
-      <HubPanel @chrome-ready="chromeReady = true" @intro-end="onIntroEnd" />
+      <HubPanel
+        :active="activeIndex === 0"
+        @chrome-ready="chromeReady = true"
+        @intro-end="onIntroEnd"
+      />
       <AboutSection />
       <ProjectsSection />
       <ContactSection />

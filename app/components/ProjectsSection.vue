@@ -35,10 +35,17 @@ const { baseURL } = useRuntimeConfig().app
           <!-- object-contain et non cover : les captures n'ont pas toutes le rapport du
                cadre, et rogner une interface la rend incompréhensible. Le cadre reste en
                16:9 pour que les deux cartes gardent la même géométrie. -->
+          <!-- sizes décrit la largeur d'affichage réelle, pas celle du fichier : le navigateur
+               n'a alors plus besoin de supposer le pire pour choisir sa résolution de décodage.
+               Une seule source suffit ici, les captures étant déjà calibrées sur le plus grand
+               affichage possible. -->
           <img
             v-if="project.image"
             :src="`${baseURL}${project.image}`"
             :alt="project.imageAlt"
+            :width="project.imageWidth"
+            :height="project.imageHeight"
+            sizes="(min-width: 1024px) 50vw, 100vw"
             class="aspect-video w-full bg-slate-100/5 object-contain object-center
                    transition-transform duration-500 ease-out group-hover:scale-105"
             loading="lazy"

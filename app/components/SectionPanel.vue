@@ -38,20 +38,24 @@ const innerClip = computed(() =>
     : `polygon(calc(${SLANT} + ${EDGE_WIDTH}) 0, 100% 0, 100% 100%, ${EDGE_WIDTH} 100%)`,
 )
 
-// Pied de section : trapèze dont le bord haut est plus court que le bord bas, liseré d accent
-// sur le haut et les deux côtés en biais. Le bas n'en a pas — il est collé au bord de la
-// section, donc jamais visible. Même montage à deux calques que la banderole, mais un
-// liseré plus fin : ici il court sur trois côtés et non sur une seule diagonale.
+// Pied de section : ancré au bord droit et centré verticalement, jamais au bord bas. Ce
+// dernier est la grandeur la moins fiable d'une fenêtre mobile — la barre d'URL le recouvre,
+// la mise à l'échelle du panneau le déplace, et vh ne s'accorde pas avec la hauteur réellement
+// visible. Un ancrage latéral centré ne le référence pas du tout.
+//
+// Même montage à deux calques que la banderole, mais un liseré plus fin : le bord droit est
+// collé au bord de la section, donc jamais visible, et le liseré ne court que sur les trois
+// autres côtés.
 const FOOTER_EDGE = '2px'
 const TAB_SLANT = '1.25rem'
 
-const footerOuterClip = `polygon(${SLANT} 0, calc(100% - ${SLANT}) 0, 100% 100%, 0 100%)`
-const footerInnerClip = `polygon(calc(${SLANT} + ${FOOTER_EDGE}) ${FOOTER_EDGE}, calc(100% - ${SLANT} - ${FOOTER_EDGE}) ${FOOTER_EDGE}, calc(100% - ${FOOTER_EDGE}) 100%, ${FOOTER_EDGE} 100%)`
-
-// Même trapèze en réduction pour l'étiquette de titre, posée sur le pied : sa largeur est
-// celle de son texte, son inclinaison est réduite en proportion.
-const tabOuterClip = `polygon(${TAB_SLANT} 0, calc(100% - ${TAB_SLANT}) 0, 100% 100%, 0 100%)`
-const tabInnerClip = `polygon(calc(${TAB_SLANT} + ${FOOTER_EDGE}) ${FOOTER_EDGE}, calc(100% - ${TAB_SLANT} - ${FOOTER_EDGE}) ${FOOTER_EDGE}, calc(100% - ${FOOTER_EDGE}) 100%, ${FOOTER_EDGE} 100%)`
+// Le panneau d'informations est un simple rectangle, à toutes les tailles : son liseré passe
+// donc par une bordure CSS ordinaire, pas par un clip-path. Seul l'onglet garde le trapèze.
+// Trapèze couché : le bord droit est plein, le bord gauche — celui qui fait face au contenu —
+// est raccourci aux deux extrémités. Sa hauteur est celle de son texte, son inclinaison
+// réduite en proportion.
+const tabOuterClip = `polygon(0 ${TAB_SLANT}, 100% 0, 100% 100%, 0 calc(100% - ${TAB_SLANT}))`
+const tabInnerClip = `polygon(${FOOTER_EDGE} calc(${TAB_SLANT} + ${FOOTER_EDGE}), 100% ${FOOTER_EDGE}, 100% calc(100% - ${FOOTER_EDGE}), ${FOOTER_EDGE} calc(100% - ${TAB_SLANT} - ${FOOTER_EDGE}))`
 
 const footerOpen = ref(false)
 const footerRef = ref<HTMLElement | null>(null)
@@ -60,8 +64,24 @@ const tabHovered = ref(false)
 // Les deux états ont le même nombre de fonctions, sinon la transition ne peut pas les
 // interpoler et le changement se ferait d'un coup. Le second drop-shadow du repos est donc
 // une couleur totalement transparente, qui ne se voit pas mais tient la place.
-const TAB_SHADOW = 'drop-shadow(0 -6px 12px rgba(0,0,0,0.55)) drop-shadow(0 0 0 transparent)'
+const TAB_SHADOW = 'drop-shadow(-6px 0 12px rgba(0,0,0,0.55)) drop-shadow(0 0 0 transparent)'
 const TAB_GLOW = 'drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 20px var(--accent))'
+
+// Le halo signale un survol ou une navigation au clavier. Les deux événements qui l'allument
+// se déclenchent aussi au toucher, où ils ne veulent rien dire et où rien ne vient les
+// éteindre : les navigateurs mobiles émettent un mouseenter de synthèse sans mouseleave, et le
+// bouton garde le focus après la fermeture du pied. Le halo restait donc allumé, et on le
+// retrouvait tel quel en remontant.
+function onTabEnter() {
+  // Sur un appareil sans survol réel, l'événement est une synthèse du toucher : on l'ignore.
+  if (window.matchMedia('(hover: hover)').matches) tabHovered.value = true
+}
+
+function onTabFocus(event: FocusEvent) {
+  // :focus-visible ne vaut que pour la navigation au clavier — le seul cas où l'indication
+  // sert à quelque chose. Un focus pris au clic ou au doigt ne l'obtient pas.
+  tabHovered.value = (event.target as HTMLElement).matches(':focus-visible')
+}
 
 let footerTween: gsap.core.Tween | undefined
 
@@ -79,17 +99,20 @@ function toggleFooter() {
   const el = footerRef.value
   if (!el) return
 
-  // Une bascule pendant l'animation précédente reprend depuis la hauteur courante plutôt
+  // Une bascule pendant l'animation précédente reprend depuis la largeur courante plutôt
   // que de repartir de zéro.
   footerTween?.kill()
 
+  // Le panneau coule depuis la droite : c'est sa largeur qu'on anime, le conteneur étant
+  // ancré à droite, sa croissance se fait donc vers la gauche. Le contenu à l'intérieur garde
+  // une largeur fixe, sinon il se recomposerait à chaque frame de l'ouverture.
   if (prefersReducedMotion()) {
-    gsap.set(el, { height: footerOpen.value ? 'auto' : 0 })
+    gsap.set(el, { width: footerOpen.value ? 'auto' : 0 })
     return
   }
 
   footerTween = gsap.to(el, {
-    height: footerOpen.value ? 'auto' : 0,
+    width: footerOpen.value ? 'auto' : 0,
     duration: footerOpen.value ? 0.45 : 0.35,
     ease: footerOpen.value ? 'power2.out' : 'power2.in',
   })
@@ -129,16 +152,21 @@ function toggleFooter() {
       <slot />
     </div>
 
-    <!-- Hors de .panel-inner, ancré au bas du panneau : c'est la hauteur de .panel-inner
+    <!-- Hors de .panel-inner, ancré au panneau lui-même : c'est la hauteur de .panel-inner
          qui règle le faux défilement, et son contenu est déplacé par un transform exprimé
          en pourcentage de cette hauteur. Un pied dépliable à l'intérieur ferait donc
          glisser toute la section à chaque frame de son animation. -->
     <!-- L'ombre est portée par l'étiquette et par le pied séparément, et non par ce
          conteneur : héritée d'ici, l'étiquette ne pourrait pas troquer son ombre noire
          contre un halo d accent au survol. -->
+    <!-- Ancré à droite et centré verticalement : le bord bas n'intervient nulle part. Sur
+         mobile il est recouvert par la barre d'URL, déplacé par la mise à l'échelle du panneau,
+         et vh ne s'accorde pas avec la hauteur réellement visible — s'y référer était la cause
+         de l'onglet qui flottait. Le conteneur étant ancré à droite, le panneau qui s'ouvre
+         croît vers la gauche. -->
     <footer
       v-if="$slots.footer"
-      class="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center"
+      class="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center"
     >
       <!-- Le halo passe par un filtre et non une box-shadow : clip-path rogne l'élément
            après son rendu, l'ombre serait découpée avec lui. -->
@@ -147,32 +175,36 @@ function toggleFooter() {
            ne déborderait jamais. -->
       <div
         v-if="$slots['footer-title']"
-        class="pointer-events-auto w-fit transition-[filter] duration-300"
+        class="pointer-events-auto transition-[filter] duration-300"
         :style="{ filter: tabHovered ? TAB_GLOW : TAB_SHADOW }"
-        @mouseenter="tabHovered = true"
+        @mouseenter="onTabEnter"
         @mouseleave="tabHovered = false"
-        @focusin="tabHovered = true"
+        @focusin="onTabFocus"
         @focusout="tabHovered = false"
       >
         <h3
-          class="group w-fit"
+          class="group"
           :style="{ clipPath: tabOuterClip, backgroundColor: EDGE_COLOR }"
         >
+          <!-- writing-mode vertical : en rangée verticale, flex-direction row suit l'axe
+               d'écriture, donc le chevron se place sous le texte sans changer de direction. -->
           <button
             type="button"
             :aria-expanded="footerOpen"
             aria-controls="section-footer"
-            class="flex items-center gap-3 bg-slate-900 px-12 pb-3 pt-4 text-xs uppercase
+            class="flex items-center gap-3 bg-slate-900 py-12 pl-4 pr-3 text-xs uppercase
                    tracking-[0.2em] text-slate-100/60 transition-colors duration-300
-                   group-hover:text-[var(--accent)]"
+                   [writing-mode:vertical-rl] group-hover:text-[var(--accent)]"
             :style="{ clipPath: tabInnerClip }"
             @click="toggleFooter"
           >
             <slot name="footer-title" />
+            <!-- Le chevron pointe vers l'intérieur au repos, vers le bord une fois ouvert :
+                 il indique le sens dans lequel le panneau va se déplacer. -->
             <svg
               viewBox="0 0 24 24"
               class="h-3.5 w-3.5 transition-transform duration-300"
-              :class="footerOpen ? 'rotate-180' : ''"
+              :class="footerOpen ? '-rotate-90' : 'rotate-90'"
               fill="none"
               stroke="currentColor"
               stroke-width="2.5"
@@ -186,23 +218,27 @@ function toggleFooter() {
         </h3>
       </div>
 
+      <!-- Le panneau suit l'onglet dans le document : la rangée étant ancrée à droite, son
+           bord droit est donc collé au bord de l'écran, et sa croissance repousse l'onglet vers
+           la gauche au lieu de s'ouvrir derrière lui. -->
       <!-- Replié par une classe et non par GSAP au montage : le serveur rend déjà la
-           hauteur nulle, sinon le pied apparaîtrait déplié le temps d'une frame. -->
+           largeur nulle, sinon le pied apparaîtrait déplié le temps d'une frame. -->
       <div
         id="section-footer"
         ref="footerRef"
         :aria-hidden="!footerOpen"
-        class="pointer-events-auto h-0 w-4/5 overflow-hidden"
+        class="pointer-events-auto flex w-0 justify-end overflow-hidden"
       >
-        <div :style="{ clipPath: footerOuterClip, backgroundColor: EDGE_COLOR }">
-          <!-- Le padding horizontal doit dépasser l'inclinaison, sinon le contenu du haut
-               passe sous la découpe. -->
-          <div
-            class="bg-slate-900 px-20 pb-10 pt-12 text-center sm:px-24"
-            :style="{ clipPath: footerInnerClip }"
-          >
-            <slot name="footer" />
-          </div>
+        <!-- justify-end sur le parent et shrink-0 ici : le contenu garde sa largeur pleine et
+             reste collé au bord droit pendant que la largeur du conteneur s'anime. C'est ce qui
+             le fait apparaître en glissant depuis le bord de l'écran, plutôt que de se
+             recomposer à chaque frame de l'ouverture. -->
+        <div
+          class="w-[85vw] max-w-[32rem] shrink-0 border-y-2 border-l-2 bg-slate-900
+                 px-6 py-8 sm:px-10 sm:py-10"
+          :style="{ borderColor: EDGE_COLOR }"
+        >
+          <slot name="footer" />
         </div>
       </div>
     </footer>

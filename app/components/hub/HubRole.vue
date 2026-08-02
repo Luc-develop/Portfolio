@@ -2,7 +2,10 @@
 import { gsap } from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 
-const props = defineProps<{ morph?: boolean }>()
+// active : le hub est-il la section à l'écran. Le panneau n'est jamais démonté — il reste
+// épinglé en position: fixed derrière les sections suivantes —, donc sans cette information
+// la boucle continuerait de tourner hors champ.
+const props = withDefaults(defineProps<{ morph?: boolean, active?: boolean }>(), { active: true })
 
 const textRef = ref<HTMLElement | null>(null)
 const altRef = ref<HTMLElement | null>(null)
@@ -63,6 +66,18 @@ watch(() => props.morph, (active) => {
   loop = gsap.timeline({ repeat: -1, delay: FIRST_HOLD, repeatDelay: HOLD_DURATION })
   addMorph(loop, alt, text, 0)
   addMorph(loop, text, alt, `+=${HOLD_DURATION}`)
+  if (!props.active) loop.pause()
+})
+
+// Le morph anime un filter: blur(), l'une des animations les plus coûteuses qui soient — le
+// flou gaussien est entièrement recalculé à chaque frame, sans raccourci GPU. La laisser
+// tourner pendant le reste de la page ampute le budget des transitions de section, ce qui se
+// voit sur mobile. La reprise repart de l'endroit exact où la pause a eu lieu, donc aucune
+// rupture visuelle au retour sur le hub.
+watch(() => props.active, (active) => {
+  if (!loop) return
+  if (active) loop.resume()
+  else loop.pause()
 })
 
 // Sortie et entrée démarrent exactement ensemble ('<') : c'est ce recouvrement des deux

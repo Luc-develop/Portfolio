@@ -1,4 +1,7 @@
 <template>
+  <!-- Le halo est posé dès le départ, donc recalculé à chaque frame du morph : MorphSVG
+       réécrit le tracé, le flou gaussien doit suivre. C'est assumé — l'éclat pendant la
+       transformation du cercle en logo fait partie de l'effet recherché. -->
   <div
     class="hub-core opacity-0 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
            w-48 h-24 drop-shadow-[0_0_40px_rgba(241,245,249,0.35)]"

@@ -153,7 +153,9 @@ const cardColors = { '--tech-surface': '#0f172a' }
     </template>
 
     <template #footer>
-      <dl class="grid gap-6 sm:grid-cols-3 lg:grid-cols-5">
+      <!-- Deux colonnes au plus : le pied n'est plus une barre pleine largeur mais un tiroir
+           latéral de 32rem, où cinq colonnes seraient illisibles. -->
+      <dl class="grid grid-cols-2 gap-x-6 gap-y-5">
         <div v-for="fact in facts" :key="fact.label" class="flex flex-col gap-1">
           <dt class="text-xs uppercase tracking-wider text-[var(--accent)]">
             {{ fact.label }}
@@ -169,7 +171,7 @@ const cardColors = { '--tech-surface': '#0f172a' }
       <a
         :href="cvUrl"
         download
-        class="mt-8 inline-flex items-center gap-2 text-sm font-medium text-[var(--accent)]
+        class="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--accent)]
                underline underline-offset-4 transition-opacity hover:opacity-70"
       >
         <svg
